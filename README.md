@@ -2,9 +2,12 @@
 
 Pretty filenames for ROM's based on No-Intro filenames.
 
-Script will hash ROM files and match them with corresponding hash in the No-Intro dat file, and use the filename from there. 
+Script will hash ROM files and match them with corresponding hash in the No-Intro dat file, and use the filename from there, and copy the ROM with the new filename to the destination folder. 
 
 Missing and Unmatched ROM's/files will be printed out to a text file. This is useful for checking what ROM's you are missing.
+
+This script will *never* move or delete any of your ROM's, it only copies them (make sure you have disk space!). 
+Only files this script will overwrite is its own Missing and Unmatched text files.
 
 # Pre-reqs
 
