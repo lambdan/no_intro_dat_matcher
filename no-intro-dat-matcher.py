@@ -72,7 +72,6 @@ unmatched_output = ""
 # iterate roms
 for path, subdir, file in os.walk(inputdir):
 	for name in file:
-		pbar.update(1)
 		files_handled += 1
 		src = os.path.normpath(os.path.join(path,name))
 
@@ -85,6 +84,7 @@ for path, subdir, file in os.walk(inputdir):
 
 		if h in hashes: # dupe
 			dupes += 1
+			pbar.update(1)
 			continue
 		else:
 			hashes.append(h)
