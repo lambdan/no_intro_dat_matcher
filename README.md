@@ -1,7 +1,10 @@
-# no_intro_dat_matcher
-Pretty names for ROMs based on no_intro filenames
+# No-Intro DAT Matcher
 
-Script will hash ROM files and match them with corresponding hash in the no_intro .dat file, and use the filename from there. 
+Pretty filenames for ROM's based on No-Intro filenames.
+
+Script will hash ROM files and match them with corresponding hash in the No-Intro dat file, and use the filename from there. 
+
+Missing and Unmatched ROM's/files will be printed out to a text file. This is useful for checking what ROM's you are missing.
 
 # Pre-reqs
 
@@ -11,7 +14,7 @@ Python 3 with xmltodict and tqdm:
     
 # Usage
 
-- Get `.dat` files from [DAT-o-MATIC](https://datomatic.no-intro.org/)
+- Get dat files from [DAT-o-MATIC](https://datomatic.no-intro.org/)
 - Put roms in a folder
 - Run the script: `python3 no-intro-dat-matcher.py platform.dat /folder/with/roms/`
     
