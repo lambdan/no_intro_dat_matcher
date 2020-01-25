@@ -6,12 +6,14 @@ from argparse import ArgumentParser
 large_size = 100*1000*1000 # 100 MB
 
 # handle arguments
-parser = ArgumentParser(description='Matches files (typically ROMs) with hashes from No-Intro .dat files to properly rename the files (roms)')
+parser = ArgumentParser(description='Matches files (typically ROMs) with hashes from No-Intro and Redump .dat files to properly rename the files (roms)')
 parser.add_argument("--input", action='store', dest='inputfolder', help='folder containing all roms', required=True)
 parser.add_argument("--dat", action='store', dest='datfile', help='path to .dat file', required=True)
 parser.add_argument("--output", action='store', dest='outputfolder', help='output folder for renamed roms. defaults to current working dir with the dat file as a subfolder if not specified')
 parser.add_argument("--mode", action='store', dest='workmode', help='copy (cp) or move (mv) roms. defaults to copy if not specified')
 parser.add_argument('--verbose', action="store_true", dest='verbose', default=False)
+parser.add_argument('-y', action="store_true", dest='no_confirm', default=False, help="Skips continue y/n prompt if used")
+parser.add_argument('--skip-existing', action="store_true", dest='skip_existing', default=False, help="Files that are already in output folder will be considered matched. Useful when working with large files. Please note this does not hash the files so it's possible to have an incorrect match.")
 parsed = parser.parse_args()
 
 inputdir = parsed.inputfolder
@@ -86,26 +88,67 @@ dupes = 0
 matches = 0
 hashes = []
 
-# setup
-total = 0
+# count inputfolder
+in_count = 0
 for root, dirs, files in os.walk(inputdir):
-    total += len(files)
-files_to_process = total
+    in_count += len(files)
 
-print (".dat file:", datfile)
-print ("Games in .dat:", len(games))
-print ("Roms folder:", inputdir)
-print ("Files in rom folder:", files_to_process)
-pbar = tqdm(total=files_to_process) # start progress bar
-pbar.set_description("Total progress")
+# count outfolder
+out_count = 0
+for root, dirs, files in os.walk(outfolder):
+    out_count += len(files)
+
+# Confirm settings with user
+print()
+print ("DAT file:", datfile, "(" + str(len(games)) + " entries)")
+print ("Input folder:", inputdir, "(" + str(in_count) + " files)")
+print ("Output folder:", outfolder, "(" + str(out_count) + " files)")
+if workmode == 'mv':
+	print("Mode: move (files will be MOVED out of the input folder to the output folder)")
+elif workmode == 'cp':
+	print("Mode: copy (files will be COPIED from the input folder to the output folder)")
+print ("Skip existing:", parsed.skip_existing)
+print()
+
+if parsed.no_confirm == False:
+	yn = input("Continue? y/N ").lower()
+	if yn != "y":
+		print ("Exiting...")
+		sys.exit(1)
+
+	print()
+
+# Check for files already in output folder if --skip-existing
+exist_skipped = 0
+if parsed.skip_existing:
+	print("Skip existing enabled! Checking for already existing files...")
+	for g in games:
+		destination = os.path.join(outfolder, g['rom']['@name'])
+
+		if os.path.isfile(destination) and parsed.skip_existing:
+			if verbose: print(g['rom']['@name'], "already in output folder!")
+			matches += 1
+			hashes.append(g['rom']['@md5'].lower())
+			exist_skipped += 1
+			files_handled += 1
+	print("Skipped based on existing:", exist_skipped)
+	print()
+
+pbar = tqdm(total=in_count) # start progress bar
+pbar.set_description("Processing input folder")
 
 unmatched_output = ""
 
-# iterate roms
+# iterate over input folder
 for path, subdir, file in os.walk(inputdir):
 	for name in file:
 		files_handled += 1
 		src = os.path.normpath(os.path.join(path,name))
+
+		if os.path.isfile(os.path.join(outfolder, name)) and parsed.skip_existing:
+			if verbose: print(" ", name, "is already in output folder, skipping...")
+			pbar.update(1)
+			continue
 
 		if name.lower().endswith(".nes"):
 			offset = 16 # iNES header offset
@@ -113,21 +156,21 @@ for path, subdir, file in os.walk(inputdir):
 			offset = 0
 
 		h = md5sum(src, offset).lower() # hashing should be the slow step, so updating the progress bar after it shouldn't be terrible?
-		pbar.update(1)
 
 		if h in hashes: # dupe
 			dupes += 1
+			pbar.update(1)
 			continue
 		else:
 			hashes.append(h)
 
 		matched = False
 		for g in games:
+			destination = os.path.join(outfolder, g['rom']['@name'])
 			if h == g['rom']['@md5'].lower():
 				matches += 1
 				matched = True
 				if verbose: print ("matched:", name, "-->", g['rom']['@name'])
-				destination = os.path.join(outfolder, g['rom']['@name'])
 				if not os.path.isfile(destination):
 					if workmode == 'mv':
 						if verbose: print ("moving:", name, "-->", destination)
@@ -137,6 +180,7 @@ for path, subdir, file in os.walk(inputdir):
 						shutil.copy(src, destination)
 				else:
 					if verbose: print ("skipping copy: already exists:", destination)
+
 				break
 
 		if matched == False:
@@ -144,8 +188,11 @@ for path, subdir, file in os.walk(inputdir):
 			unmatched += 1
 			unmatched_output += name + "\n"
 
+		pbar.update(1)
+
 
 pbar.close()
+print()
 
 # missing roms
 print ("Checking for missing roms...")
@@ -158,20 +205,23 @@ for g in games:
 		if verbose: print ("missing:", g['rom']['@name'])
 		missing_output += g['rom']['@name'] + "\t" + g['rom']['@md5'] + "\t" + g['rom']['@sha1'] + "\n"
 
-print ("Writing Missing.txt")
-with open("Missing - " + os.path.basename(os.path.splitext(datfile)[0]) + ".txt", "w") as f:
+missing_filename = "Missing - " + os.path.basename(os.path.splitext(datfile)[0]) + ".txt"
+print ("Writing", missing_filename)
+with open(missing_filename, "w") as f:
 	f.write(missing_output)
 
-print ("Writing Unmatched.txt")
-with open("Unmatched - " + os.path.basename(os.path.splitext(datfile)[0]) + ".txt", "w") as f:
+unmatched_filename = "Unmatched - " + os.path.basename(os.path.splitext(datfile)[0]) + ".txt"
+print ("Writing", unmatched_filename)
+with open(unmatched_filename, "w") as f:
 	f.write(unmatched_output)
 
 ################################
 
 print()
 print ("Files handled:", files_handled)
-print ("Unique files:", len(hashes))
-print ("Duplicate files:", dupes)
+print ("Unique hashes:", len(hashes))
+print ("Duplicate files in input folder:", dupes)
+if parsed.skip_existing: print ("Skipped existing:", exist_skipped)
 print ("Matched roms:", matches)
-print ("Missing roms:", missing, "(see Missing.txt)")
-print ("Unmatched files:", unmatched, "(see Unmatched.txt)")
+print ("Missing roms:", missing, "(see " + missing_filename + ")")
+print ("Unmatched files:", unmatched, "(see " + unmatched_filename + ")")
