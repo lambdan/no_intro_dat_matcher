@@ -8,23 +8,16 @@ parser = ArgumentParser(description='Hashes files and copies unique files to a f
 parser.add_argument("-i", action='store', dest='inputfolder', help='folder containing all files', required=True)
 parser.add_argument("-o", action='store', dest='outputfolder', help='output folder for unique files', required=True)
 parser.add_argument("-m", action='store', dest='workmode', help='copy (cp) or move (mv) roms. defaults to copy if not specified')
-parser.add_argument('-v', action="store_true", dest='verbose', default=False)
 parsed = parser.parse_args()
 
 inputdir = parsed.inputfolder
-verbose = parsed.verbose
 outfolder = parsed.outputfolder
 
-if verbose:
-	verbose = True
-	print("Verbose mode activated")
 
 if str(parsed.workmode).lower() == 'mv' or str(parsed.workmode).lower() == 'move':
 	workmode = 'mv'
 else:
 	workmode = 'cp'
-
-if verbose: print("Workmode set to", workmode)
 
 
 if not os.path.exists(outfolder):
@@ -41,7 +34,6 @@ if os.path.abspath(inputdir) == os.path.abspath(outfolder):
 
 def md5sum(filename, offset):
 	size = os.path.getsize(filename)
-	if verbose: print("md5sum", filename, str(offset) + " offset")
 
 	h = hashlib.md5()
 	with open(filename, 'rb') as file:
@@ -67,7 +59,7 @@ for root, dirs, files in os.walk(inputdir):
 
 
 pbar = tqdm(total=in_count) # start progress bar
-pbar.set_description("Processing")
+pbar.set_description('Processing... Unique: ' + str(len(hashes)) + '/Dupe: ' + str(dupes) + '...')
 
 # iterate over input folder
 for path, subdir, file in os.walk(inputdir):
@@ -81,6 +73,7 @@ for path, subdir, file in os.walk(inputdir):
 		if h in hashes: # dupe
 			dupes += 1
 			pbar.update(1)
+			pbar.set_description('Processing... Unique: ' + str(len(hashes)) + '/Dupe: ' + str(dupes) + '...')
 			continue
 		else:
 			hashes.append(h)
@@ -89,24 +82,18 @@ for path, subdir, file in os.walk(inputdir):
 
 		if not os.path.isfile(destination):
 			if workmode == 'mv':
-				if verbose: print ("moving:", name, "-->", destination)
 				shutil.move(src, destination)
 			elif workmode == 'cp':
-				if verbose: print ("copying:", name, "-->", destination)
 				shutil.copy(src, destination)
-		else:
-			if verbose: print ("skipping copy: already exists:", destination)
 
 
 		pbar.update(1)
+		pbar.set_description('Processing... Unique: ' + str(len(hashes)) + '/Dupe: ' + str(dupes) + '...')
 
 
 pbar.close()
-print()
-
-################################
 
 print()
 print ("Files handled:", files_handled)
-print ("Unique hashes:", len(hashes))
+print ("Unique files:", len(hashes))
 print ("Duplicate files in input folder:", dupes)
