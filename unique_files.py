@@ -78,7 +78,8 @@ for path, subdir, file in os.walk(inputdir):
 		else:
 			hashes.append(h)
 
-		destination = os.path.join(outfolder, h) # h (hash) as filename, no extension
+		outname = h + '.' + os.path.splitext(name)[1] # hash + original extension as name
+		destination = os.path.join(outfolder, outname)
 
 		if not os.path.isfile(destination):
 			if workmode == 'mv':
