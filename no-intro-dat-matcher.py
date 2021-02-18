@@ -10,7 +10,7 @@ parser = ArgumentParser(description='Matches files (typically ROMs) with hashes 
 parser.add_argument("--input", action='store', dest='inputfolder', help='folder containing all roms', required=True)
 parser.add_argument("--dat", action='store', dest='datfile', help='path to .dat file', required=True)
 parser.add_argument("--output", action='store', dest='outputfolder', help='output folder for renamed roms. defaults to current working dir with the dat file as a subfolder if not specified')
-parser.add_argument("--mode", action='store', dest='workmode', help='copy (cp) or move (mv) roms. defaults to copy if not specified')
+parser.add_argument("--mode", action='store', dest='workmode', help='copy (cp), move (mv), or hardlink (lnk) roms. defaults to hardlink if not specified')
 parser.add_argument('--verbose', action="store_true", dest='verbose', default=False)
 parser.add_argument('-y', action="store_true", dest='no_confirm', default=False, help="Skips continue y/n prompt if used")
 parser.add_argument('--skip-existing', action="store_true", dest='skip_existing', default=False, help="Files that are already in output folder will be considered matched. Useful when working with large files. Please note this does not hash the files so it's possible to have an incorrect match.")
@@ -26,8 +26,10 @@ if verbose:
 
 if str(parsed.workmode).lower() == 'mv' or str(parsed.workmode).lower() == 'move':
 	workmode = 'mv'
-else:
+elif str(parsed.workmode).lower() == 'cp' or str(parsed.workmode).lower() == 'copy':
 	workmode = 'cp'
+else:
+    workmode = 'lnk'
 
 if verbose: print("Workmode set to", workmode)
 
@@ -107,6 +109,8 @@ if workmode == 'mv':
 	print("Mode: move (files will be MOVED out of the input folder to the output folder)")
 elif workmode == 'cp':
 	print("Mode: copy (files will be COPIED from the input folder to the output folder)")
+elif workmode == 'lnk' :
+    print("Mode: hardlink (files will be HARDLINKED from the input folder to the output folder)")
 print ("Skip existing:", parsed.skip_existing)
 print()
 
@@ -178,6 +182,9 @@ for path, subdir, file in os.walk(inputdir):
 					elif workmode == 'cp':
 						if verbose: print ("copying:", name, "-->", destination)
 						shutil.copy(src, destination)
+					elif workmode == 'lnk':
+						if verbose: print ("hardlinking:", name, "-->", destination)
+						os.link(src, destination)
 				else:
 					if verbose: print ("skipping copy: already exists:", destination)
 
